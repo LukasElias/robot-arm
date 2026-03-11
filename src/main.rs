@@ -9,12 +9,12 @@ use cortex_m_rt::entry;
 use microbit::{
     board::Board,
     hal::{
+        gpio::Level,
         pwm::{
-            Pwm,
             Channel,
+            Pwm,
         },
         time::Hertz,
-        gpio::Level,
     },
 };
 
@@ -27,12 +27,11 @@ fn main() -> ! {
         
         pwm.set_output_pin(Channel::C0, servopin);
         
-        pwm.set_period(Hertz(50));
+        pwm.set_period(Hertz(50)); // 20 ms
 
         pwm.set_duty_on(Channel::C0, 1500);
 
         pwm.enable();
-        
 
         loop {}
     }
