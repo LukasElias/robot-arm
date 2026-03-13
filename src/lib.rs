@@ -2,34 +2,21 @@
 #![no_main]
 
 use microbit::hal::{
-    gpio::{
-        Output,
-        Pin,
-        PushPull,
-    },
-    pwm::{
-        Channel, Instance, Pwm,
-    },
+    gpio::{Output, Pin, PushPull},
+    pwm::{Channel, Instance, Pwm},
     time::Hertz,
 };
 
-const SERVO_MIN_DUTY_MS: u16 = 1000;
-const SERVO_MAX_DUTY_MS: u16 = 2000;
 const SERVO_MAX_DEGREES: u16 = 180;
-
 
 pub struct ServoGroup<T: Instance> {
     pwm: Pwm<T>,
     len: usize,
 }
 
-
 impl<T: Instance> ServoGroup<T> {
     pub fn new(pwm: Pwm<T>) -> Self {
-        Self {
-            pwm,
-            len: 0,
-        }
+        Self { pwm, len: 0 }
     }
 
     pub fn set_period(&self, freq: Hertz) {
@@ -52,16 +39,22 @@ impl<T: Instance> ServoGroup<T> {
     }
 
     pub fn channel_set_degrees(&self, channel: Channel, degrees: u16) -> Result<(), ()> {
-        if degrees > SERVO_MAX_DEGREES {
-            return Err(());
-        }
-
-        let duty = (SERVO_MAX_DUTY_MS - SERVO_MIN_DUTY_MS) * degrees / SERVO_MAX_DEGREES + SERVO_MIN_DUTY_MS;
+        let duty = self.degrees_to_duty(degrees)?;
 
         self.pwm.set_duty_on(channel, duty);
 
         self.pwm.enable_channel(channel);
 
         Ok(())
+    }
+
+    fn degrees_to_duty(&self, degrees: u16) -> Result<u16, ()> {
+        if degrees > SERVO_MAX_DEGREES {
+            return Err(());
+        }
+
+        let min_duty = self.pwm.max_duty() / 20;
+
+        Ok(min_duty / SERVO_MAX_DEGREES * degrees + min_duty)
     }
 }
