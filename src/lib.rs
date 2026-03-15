@@ -41,7 +41,7 @@ impl<T: Instance> ServoGroup<T> {
     pub fn channel_set_degrees(&self, channel: Channel, degrees: u16) -> Result<(), ()> {
         let duty = self.degrees_to_duty(degrees)?;
 
-        self.pwm.set_duty_on(channel, duty);
+        self.pwm.set_duty_off(channel, duty);
 
         self.pwm.enable_channel(channel);
 
