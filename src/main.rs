@@ -16,6 +16,8 @@ use microbit::{
 use robot_arm::ServoInitializinator;
 
 const SERVO_MAX_DEGREES: f32 = 180.0;
+const MAX_DUTY_PERCENT: f32 = 1.0 / 10.0;
+const MIN_DUTY_PERCENT: f32 = 1.0 / 20.0;
 
 #[entry]
 fn main() -> ! {
@@ -26,7 +28,7 @@ fn main() -> ! {
 
         let pwm = Pwm::new(board.PWM0);
 
-        let mut servo_initializinator = ServoInitializinator::new(pwm, SERVO_MAX_DEGREES);
+        let mut servo_initializinator = ServoInitializinator::new(pwm, SERVO_MAX_DEGREES, MAX_DUTY_PERCENT, MIN_DUTY_PERCENT);
 
         servo_initializinator.set_period(Hertz(50));
 
