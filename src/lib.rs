@@ -11,13 +11,13 @@ use microbit::hal::{
 pub struct ServoInitializinator<T: Instance> {
     pwm: Pwm<T>,
     len: usize,
-    max_duty_percent: f32,
-    min_duty_percent: f32,
+    max_pulse_us: f32,
+    min_pulse_us: f32,
     max_degrees: f32,
 }
 
 impl<T: Instance + core::fmt::Debug> ServoInitializinator<T> {
-    pub fn new(pwm: Pwm<T>, max_degrees: f32, max_duty_percent: f32, min_duty_percent: f32) -> Self {
+    pub fn new(pwm: Pwm<T>, max_degrees: f32, max_pulse_us: f32, min_pulse_us: f32) -> Self {
         pwm.set_counter_mode(CounterMode::Up);
         pwm.set_load_mode(LoadMode::Individual);
         pwm.loop_inf();
@@ -25,13 +25,14 @@ impl<T: Instance + core::fmt::Debug> ServoInitializinator<T> {
         Self {
             pwm,
             len: 0,
-            max_duty_percent,
-            min_duty_percent,
+            max_pulse_us,
+            min_pulse_us,
             max_degrees,
         }
     }
 
     pub fn set_period(&self, freq: Hertz) {
+        self.pwm.set_prescaler(microbit::hal::pwm::Prescaler::Div16);
         self.pwm.set_period(freq);
     }
 
@@ -53,8 +54,8 @@ impl<T: Instance + core::fmt::Debug> ServoInitializinator<T> {
     }
 
     pub fn init(self) -> ServoSteerinator<T> {
-        let max_servo_duty = self.pwm.max_duty() as f32 * self.max_duty_percent;
-        let min_servo_duty = self.pwm.max_duty() as f32 * self.min_duty_percent;
+        let max_duty = self.pwm.max_duty();
+        let period_us = (1_000_000 / self.pwm.period().0) as f32;
 
         let seq: &'static mut [u16; 4] = singleton!(: [u16; 4] = [0, 0, 0, 0]).unwrap();
 
@@ -62,36 +63,47 @@ impl<T: Instance + core::fmt::Debug> ServoInitializinator<T> {
 
         let pwm_seq = self.pwm.load(Some(&*seq), None::<&'static [u16; 4]>, true).unwrap();
 
-        defmt::info!("max: {} min: {}", max_servo_duty, min_servo_duty);
+        defmt::info!("{}", period_us);
 
         ServoSteerinator {
-            _pwm_seq: pwm_seq,
+            pwm_seq,
             seq_ptr,
-            max_servo_duty,
-            min_servo_duty,
+            max_pulse_us: self.max_pulse_us,
+            min_pulse_us: self.min_pulse_us,
             max_degrees: self.max_degrees,
+            max_duty,
+            period_us,
         }
     }
 }
 
 pub struct ServoSteerinator<T: Instance> {
-    _pwm_seq: PwmSeq<T, &'static [u16; 4], &'static [u16; 4]>,
+    pwm_seq: PwmSeq<T, &'static [u16; 4], &'static [u16; 4]>,
     seq_ptr: *mut [u16; 4],
-    max_servo_duty: f32,
-    min_servo_duty: f32,
+    max_pulse_us: f32,
+    min_pulse_us: f32,
     max_degrees: f32,
+    max_duty: u16,
+    period_us: f32,
 }
 
 impl<T: Instance> ServoSteerinator<T> {
     pub fn set_servo_degrees(&mut self, channel: Channel, degrees: f32) -> Result<(), ()> {
         let duty = self.degrees_to_duty(degrees)?;
 
-        unsafe {
-            (*self.seq_ptr)[channel as usize] = duty & 0x7FFF;
-            defmt::info!("{}", *self.seq_ptr);
-        }
+        defmt::info!("{}", duty);
+
+        self.set_servo_duty(channel, duty);
 
         Ok(())
+    }
+
+    pub fn set_servo_duty(&mut self, channel: Channel, duty: u16) {
+        unsafe {
+            (*self.seq_ptr)[channel as usize] = duty | 0x8000;
+        }
+
+        self.pwm_seq.start_seq(microbit::hal::pwm::Seq::Seq0);
     }
 
     pub fn degrees_to_duty(&self, degrees: f32) -> Result<u16, ()> {
@@ -99,6 +111,10 @@ impl<T: Instance> ServoSteerinator<T> {
             return Err(());
         }
 
-        Ok(((self.max_servo_duty - self.min_servo_duty) / self.max_degrees * degrees + self.min_servo_duty) as u16)
+        let pulse_us = self.min_pulse_us + (self.max_pulse_us - self.min_pulse_us) * (degrees / self.max_degrees);
+
+        let duty = (pulse_us / self.period_us) * (self.max_duty as f32);
+
+        Ok(duty as u16)
     }
 }

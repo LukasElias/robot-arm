@@ -9,3 +9,6 @@ rustflags = [
 # Automatically select this target when cargo building this project
 [build]
 target = "thumbv7em-none-eabihf"
+
+[env]
+DEFMT_LOG = "info"
