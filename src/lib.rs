@@ -17,10 +17,13 @@ pub struct ServoInitializinator<T: Instance> {
 }
 
 impl<T: Instance + core::fmt::Debug> ServoInitializinator<T> {
-    pub fn new(pwm: Pwm<T>, max_degrees: f32, max_pulse_us: f32, min_pulse_us: f32) -> Self {
+    pub fn new(pwm: Pwm<T>, max_degrees: f32, max_pulse_us: f32, min_pulse_us: f32, period_freq: Hertz) -> Self {
         pwm.set_counter_mode(CounterMode::Up);
         pwm.set_load_mode(LoadMode::Individual);
         pwm.loop_inf();
+
+        pwm.set_prescaler(microbit::hal::pwm::Prescaler::Div16);
+        pwm.set_period(period_freq);
 
         Self {
             pwm,
@@ -29,11 +32,6 @@ impl<T: Instance + core::fmt::Debug> ServoInitializinator<T> {
             min_pulse_us,
             max_degrees,
         }
-    }
-
-    pub fn set_period(&self, freq: Hertz) {
-        self.pwm.set_prescaler(microbit::hal::pwm::Prescaler::Div16);
-        self.pwm.set_period(freq);
     }
 
     pub fn new_servo(&mut self, pin: Pin<Output<PushPull>>) -> Result<Channel, ()> {

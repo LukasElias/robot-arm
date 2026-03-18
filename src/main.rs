@@ -18,6 +18,7 @@ use robot_arm::ServoInitializinator;
 const SERVO_MAX_DEGREES: f32 = 180.0;
 const MAX_PULSE_US: f32 = 1000.0;
 const MIN_PULSE_US: f32 = 2000.0;
+const PERIOD: Hertz = Hertz(50); // 20 ms or 20000 us
 
 #[entry]
 fn main() -> ! {
@@ -28,9 +29,7 @@ fn main() -> ! {
 
         let pwm = Pwm::new(board.PWM0);
 
-        let mut servo_initializinator = ServoInitializinator::new(pwm, SERVO_MAX_DEGREES, MAX_PULSE_US, MIN_PULSE_US);
-
-        servo_initializinator.set_period(Hertz(50));
+        let mut servo_initializinator = ServoInitializinator::new(pwm, SERVO_MAX_DEGREES, MAX_PULSE_US, MIN_PULSE_US, PERIOD);
 
         let channel_id = servo_initializinator
             .new_servo(servopin)
