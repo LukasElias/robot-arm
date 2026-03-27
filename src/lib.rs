@@ -4,7 +4,7 @@
 use cortex_m::singleton;
 use microbit::hal::{
     gpio::{Output, Pin, PushPull},
-    pwm::{Channel, CounterMode, Instance, LoadMode, Pwm, PwmSeq},
+    pwm::{Channel, CounterMode, Instance, LoadMode, Pwm, PwmSeq, Seq},
     time::Hertz,
 };
 
@@ -89,8 +89,6 @@ impl<T: Instance> ServoSteerinator<T> {
     pub fn set_servo_degrees(&mut self, channel: Channel, degrees: f32) -> Result<(), ()> {
         let duty = self.degrees_to_duty(degrees)?;
 
-        defmt::info!("{}", duty);
-
         self.set_servo_duty(channel, duty);
 
         Ok(())
@@ -99,9 +97,11 @@ impl<T: Instance> ServoSteerinator<T> {
     pub fn set_servo_duty(&mut self, channel: Channel, duty: u16) {
         unsafe {
             (*self.seq_ptr)[channel as usize] = duty | 0x8000;
+
+            defmt::info!("{}", duty);
         }
 
-        self.pwm_seq.start_seq(microbit::hal::pwm::Seq::Seq0);
+        self.pwm_seq.start_seq(Seq::Seq0);
     }
 
     pub fn degrees_to_duty(&self, degrees: f32) -> Result<u16, ()> {
@@ -109,7 +109,7 @@ impl<T: Instance> ServoSteerinator<T> {
             return Err(());
         }
 
-        let pulse_us = self.min_pulse_us + (self.max_pulse_us - self.min_pulse_us) * (degrees / self.max_degrees);
+        let pulse_us = self.min_pulse_us + (self.max_pulse_us - self.min_pulse_us) * ((self.max_degrees - degrees) / self.max_degrees);
 
         let duty = (pulse_us / self.period_us) * (self.max_duty as f32);
 
